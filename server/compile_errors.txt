@@ -1,0 +1,17 @@
+prisma.config.ts(11,3): error TS2375: Type '{ url: string | undefined; }' is not assignable to type '{ url?: string; shadowDatabaseUrl?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'url' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/middleware/authMiddleware.ts(15,33): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/prisma.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'PrismaClient'.
+src/Room.ts(1,10): error TS1484: 'Router' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/Room.ts(1,18): error TS1484: 'RtpCapabilities' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/Room.ts(1,35): error TS1484: 'Worker' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/Room.ts(1,43): error TS1484: 'MediaKind' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/Room.ts(1,54): error TS1484: 'RtpParameters' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/Room.ts(1,69): error TS1484: 'DtlsParameters' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/socketHandlers.ts(6,10): error TS1484: 'DtlsParameters' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/socketHandlers.ts(6,26): error TS1484: 'MediaKind' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/socketHandlers.ts(6,37): error TS1484: 'RtpCapabilities' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/socketHandlers.ts(6,54): error TS1484: 'RtpParameters' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.

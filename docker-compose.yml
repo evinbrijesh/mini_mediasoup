@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: meet-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-meet_clone}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: meet-redis
+    ports:
+      - "6379:6379"
+
+  server:
+    build: ./server
+    container_name: meet-server
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-meet_clone}?schema=public
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "3000:3000"
+      - "10000-10100:10000-10100/udp"
+      - "10000-10100:10000-10100/tcp"
+    depends_on:
+      - postgres
+      - redis
+
+  ai-service:
+    build: ./ai-service
+    container_name: meet-ai
+    volumes:
+      - ./ai-service:/app
+    environment:
+      - DEEPL_API_KEY=${DEEPL_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+    depends_on:
+      - server
+
+  client:
+    build: ./client
+    container_name: meet-client
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
