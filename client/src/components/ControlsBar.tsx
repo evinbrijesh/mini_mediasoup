@@ -18,69 +18,71 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({
     isMuted, isVideoOff, onToggleMic, onToggleCamera, onToggleChat, onToggleParticipants, onLeave
 }) => {
     return (
-        <div className="absolute bottom-0 left-0 w-full h-[88px] bg-meet-bg flex items-center justify-between px-6 z-50">
+        <div className="controls-bar">
             {/* Left section - Time & Info */}
-            <div className="flex-1 flex items-center gap-4 text-white font-medium text-[15px]">
-                <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                <div className="w-px h-4 bg-gray-500 mx-1"></div>
+            <div className="controls-left">
+                <span>{new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                <span className="controls-divider">|</span>
                 <span>x5k-ky9-byz</span>
             </div>
 
             {/* Center section - Main Controls */}
-            <div className="flex items-center justify-center gap-3">
+            <div className="controls-center">
                 <button
                     onClick={onToggleMic}
-                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${isMuted ? 'bg-meet-red hover:bg-meet-redHover text-white' : 'bg-meet-surface hover:bg-meet-surfaceHover text-white'}`}
+                    className={`ctrl-btn ${isMuted ? 'bg-red' : 'bg-gray'}`}
                 >
-                    {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+                    {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
                 </button>
 
                 <button
                     onClick={onToggleCamera}
-                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${isVideoOff ? 'bg-meet-red hover:bg-meet-redHover text-white' : 'bg-meet-surface hover:bg-meet-surfaceHover text-white'}`}
+                    className={`ctrl-btn ${isVideoOff ? 'bg-red' : 'bg-gray'}`}
                 >
-                    {isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}
+                    {isVideoOff ? <VideoOff size={22} /> : <Video size={22} />}
                 </button>
 
-                <button className="w-14 h-14 rounded-full flex items-center justify-center bg-meet-surface hover:bg-meet-surfaceHover text-white transition-colors">
-                    <Hand size={24} />
+                <div className="vertical-separator"></div>
+
+                <button className="ctrl-btn bg-gray">
+                    <Hand size={22} />
                 </button>
 
-                <button className="w-14 h-14 rounded-full flex items-center justify-center bg-meet-surface hover:bg-meet-surfaceHover text-white transition-colors">
-                    <ScreenShare size={24} />
+                <button className="ctrl-btn bg-gray hide-sm">
+                    <ScreenShare size={22} />
                 </button>
 
-                <button className="hidden sm:flex w-14 h-14 rounded-full items-center justify-center bg-meet-surface hover:bg-meet-surfaceHover text-white transition-colors">
-                    <MoreVertical size={24} />
+                <button className="ctrl-btn bg-gray hide-sm">
+                    <MoreVertical size={22} />
                 </button>
 
-                <button onClick={onLeave} className="w-16 h-10 px-6 rounded-full flex items-center justify-center bg-meet-red hover:bg-meet-redHover text-white transition-colors mx-2">
-                    <Phone size={24} className="transform rotate-[135deg]" />
+                <button onClick={onLeave} className="ctrl-btn bg-red ctrl-btn-leave">
+                    <Phone size={24} />
                 </button>
             </div>
 
             {/* Right section - Sidebars & Options */}
-            <div className="flex-1 flex justify-end items-center gap-1 text-white">
-                <button className="p-3 rounded-full hover:bg-meet-surface transition-colors hidden md:block">
-                    <Info size={24} />
+            <div className="controls-right">
+                <button className="icon-btn-ghost-dark hide-md">
+                    <Info size={22} />
                 </button>
                 <button
                     onClick={onToggleParticipants}
-                    className="p-3 rounded-full hover:bg-meet-surface transition-colors"
+                    className="icon-btn-ghost-dark"
                 >
-                    <Users size={24} />
+                    <Users size={22} />
                 </button>
                 <button
                     onClick={onToggleChat}
-                    className="p-3 rounded-full hover:bg-meet-surface transition-colors"
+                    className="icon-btn-ghost-dark"
                 >
-                    <MessageSquare size={24} />
+                    <MessageSquare size={22} />
                 </button>
-                <button className="p-3 rounded-full hover:bg-meet-surface transition-colors hidden lg:block">
-                    <Activity size={24} />
+                <button className="icon-btn-ghost-dark hide-lg">
+                    <Activity size={22} />
                 </button>
-                <button className="p-3 rounded-full hover:bg-meet-surface transition-colors hidden lg:block">
-                    <Shield size={24} />
+                <button className="icon-btn-ghost-dark hide-lg">
+                    <Shield size={22} />
                 </button>
             </div>
         </div>

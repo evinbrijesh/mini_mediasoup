@@ -96,9 +96,9 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-mesh-dark">
-            <div className="flex-1 flex relative overflow-hidden">
-                <div className="flex-1 relative z-0">
+        <div className="app-container">
+            <div className="main-content">
+                <div className="video-area">
                     <VideoGrid />
                     <CaptionOverlay socket={socket} />
                 </div>

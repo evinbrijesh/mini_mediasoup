@@ -28,9 +28,9 @@ export const CaptionOverlay: React.FC<CaptionOverlayProps> = ({ socket }) => {
     if (!caption) return null;
 
     return (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
-            <div className="bg-black/80 px-6 py-3 rounded-lg text-white text-center text-lg animate-fade-in border border-white/10">
-                <p className="leading-relaxed">{caption}</p>
+        <div className="caption-overlay">
+            <div className="caption-box">
+                {caption}
             </div>
         </div>
     );

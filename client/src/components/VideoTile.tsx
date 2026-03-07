@@ -26,20 +26,18 @@ export const VideoTile: React.FC<VideoTileProps> = ({ stream, audioStream, displ
     }, [audioStream]);
 
     return (
-        <div className="relative w-full aspect-video bg-meet-surface rounded-lg overflow-hidden flex items-center justify-center">
+        <div className="video-tile">
             {stream ? (
                 <video
                     ref={videoRef}
                     autoPlay
                     muted={isLocal}
                     playsInline
-                    className={`w-full h-full object-cover rounded-lg relative z-0 ${isLocal ? 'scale-x-[-1]' : ''}`}
+                    className={`video-element ${isLocal ? 'mirrored' : ''}`}
                 />
             ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-meet-surface">
-                    <div className="w-24 h-24 rounded-full border border-gray-600 bg-meet-surfaceHover flex items-center justify-center text-4xl font-medium text-white">
-                        {displayName[0].toUpperCase()}
-                    </div>
+                <div className="participant-avatar">
+                    {displayName[0].toUpperCase()}
                 </div>
             )}
 
@@ -48,13 +46,13 @@ export const VideoTile: React.FC<VideoTileProps> = ({ stream, audioStream, displ
                 <audio ref={audioRef} autoPlay />
             )}
 
-            <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-black/50 px-3 py-1.5 rounded text-sm font-medium text-white">
+            <div className="tile-overlay">
                 {isMuted && (
-                    <div className="bg-red-500 rounded-full p-0.5 shadow-sm text-white flex items-center justify-center w-5 h-5">
-                        <MicOff size={12} />
+                    <div className="mic-indicator muted">
+                        <MicOff size={11} />
                     </div>
                 )}
-                <span className="truncate max-w-[150px]">{displayName} {isLocal ? '(You)' : ''}</span>
+                <span className="name-bg">{displayName} {isLocal ? '(You)' : ''}</span>
             </div>
         </div>
     );
