@@ -21,15 +21,26 @@ export const VideoGrid: React.FC = () => {
 
     return (
         <div className={`video-grid ${getGridCols(allParticipants.length)}`}>
-            {allParticipants.map(p => (
-                <VideoTile
-                    key={p.id}
-                    stream={p.videoStream}
-                    audioStream={p.audioStream}
-                    displayName={p.displayName}
-                    isLocal={p.isLocal}
-                    isMuted={p.isMuted}
-                />
+            {allParticipants.map((p: any) => (
+                <React.Fragment key={p.id}>
+                    <VideoTile
+                        stream={p.videoStream}
+                        audioStream={p.audioStream}
+                        displayName={p.displayName}
+                        isLocal={p.isLocal}
+                        isMuted={p.isMuted}
+                        isHandRaised={p.isHandRaised}
+                    />
+                    {p.screenStream && (
+                        <VideoTile
+                            stream={p.screenStream}
+                            displayName={`${p.displayName}'s Screen`}
+                            isLocal={p.isLocal}
+                            isMuted={true}
+                            isScreenShare={true}
+                        />
+                    )}
+                </React.Fragment>
             ))}
         </div>
     );

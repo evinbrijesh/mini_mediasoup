@@ -7,15 +7,21 @@ import {
 interface ControlsBarProps {
     isMuted: boolean;
     isVideoOff: boolean;
+    isHandRaised?: boolean;
+    isScreenSharing?: boolean;
     onToggleMic: () => void;
     onToggleCamera: () => void;
+    onToggleHandRaise?: () => void;
+    onToggleScreenShare?: () => void;
     onToggleChat: () => void;
     onToggleParticipants: () => void;
     onLeave: () => void;
 }
 
 export const ControlsBar: React.FC<ControlsBarProps> = ({
-    isMuted, isVideoOff, onToggleMic, onToggleCamera, onToggleChat, onToggleParticipants, onLeave
+    isMuted, isVideoOff, isHandRaised, isScreenSharing,
+    onToggleMic, onToggleCamera, onToggleHandRaise, onToggleScreenShare,
+    onToggleChat, onToggleParticipants, onLeave
 }) => {
     return (
         <div className="controls-bar">
@@ -44,11 +50,17 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({
 
                 <div className="vertical-separator"></div>
 
-                <button className="ctrl-btn bg-gray">
+                <button
+                    onClick={onToggleHandRaise}
+                    className={`ctrl-btn ${isHandRaised ? 'bg-blue' : 'bg-gray'}`}
+                >
                     <Hand size={22} />
                 </button>
 
-                <button className="ctrl-btn bg-gray hide-sm">
+                <button
+                    onClick={onToggleScreenShare}
+                    className={`ctrl-btn hide-sm ${isScreenSharing ? 'bg-blue' : 'bg-gray'}`}
+                >
                     <ScreenShare size={22} />
                 </button>
 

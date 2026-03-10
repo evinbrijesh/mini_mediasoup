@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { MicOff } from 'lucide-react';
+import { MicOff, Hand } from 'lucide-react';
 
 interface VideoTileProps {
     stream?: MediaStream;
@@ -7,9 +7,13 @@ interface VideoTileProps {
     displayName: string;
     isLocal?: boolean;
     isMuted?: boolean;
+    isHandRaised?: boolean;
+    isScreenShare?: boolean;
 }
 
-export const VideoTile: React.FC<VideoTileProps> = ({ stream, audioStream, displayName, isLocal, isMuted }) => {
+export const VideoTile: React.FC<VideoTileProps> = ({
+    stream, audioStream, displayName, isLocal, isMuted, isHandRaised, isScreenShare
+}) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -33,7 +37,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({ stream, audioStream, displ
                     autoPlay
                     muted={isLocal}
                     playsInline
-                    className={`video-element ${isLocal ? 'mirrored' : ''}`}
+                    className={`video-element ${isLocal && !isScreenShare ? 'mirrored' : ''}`}
                 />
             ) : (
                 <div className="participant-avatar">
@@ -46,13 +50,20 @@ export const VideoTile: React.FC<VideoTileProps> = ({ stream, audioStream, displ
                 <audio ref={audioRef} autoPlay />
             )}
 
-            <div className="tile-overlay">
-                {isMuted && (
-                    <div className="mic-indicator muted">
-                        <MicOff size={11} />
-                    </div>
-                )}
-                <span className="name-bg">{displayName} {isLocal ? '(You)' : ''}</span>
+            <div className={`tile-overlay ${isScreenShare ? 'screen-share-overlay' : ''}`}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {isHandRaised && (
+                        <div className="hand-indicator">
+                            <Hand size={14} color="#facc15" fill="#facc15" />
+                        </div>
+                    )}
+                    {isMuted && !isScreenShare && (
+                        <div className="mic-indicator muted">
+                            <MicOff size={11} />
+                        </div>
+                    )}
+                    <span className="name-bg">{displayName} {isLocal && !isScreenShare ? '(You)' : ''}</span>
+                </div>
             </div>
         </div>
     );

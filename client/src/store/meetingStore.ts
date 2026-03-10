@@ -8,6 +8,8 @@ interface Participant {
     audioStream?: MediaStream;
     isMuted: boolean;
     isVideoOff: boolean;
+    isHandRaised?: boolean;
+    screenStream?: MediaStream;
 }
 
 interface MeetingState {

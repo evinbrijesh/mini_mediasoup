@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSocket } from './hooks/useSocket';
 import { useLocalMedia } from './hooks/useLocalMedia';
 import { useMediasoup } from './hooks/useMediasoup';
@@ -12,17 +12,32 @@ import { CaptionOverlay } from './components/CaptionOverlay';
 
 const App: React.FC = () => {
     const socket = useSocket();
-    const { startLocalStream, toggleVideo, toggleAudio } = useLocalMedia();
+    const { startLocalStream, startScreenShare, startTranscription, stopTranscription, toggleVideo, toggleAudio } = useLocalMedia();
     const { joinRoom, produce } = useMediasoup(socket);
 
     const [inMeeting, setInMeeting] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
+    const [isHandRaised, setIsHandRaised] = useState(false);
+    const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [user, setUser] = useState<any>(null);
 
     const [sidebar, setSidebar] = useState<'chat' | 'participants' | null>(null);
 
     const setLocalParticipant = useMeetingStore(state => state.setLocalParticipant);
+    const updateParticipant = useMeetingStore(state => state.updateParticipant);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        socket.on('hand-raise-changed', ({ peerId, isHandRaised }) => {
+            updateParticipant(peerId, { isHandRaised });
+        });
+
+        return () => {
+            socket.off('hand-raise-changed');
+        };
+    }, [socket, updateParticipant]);
 
     const apiFetch = async (endpoint: string, method: string, body: any) => {
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/${endpoint}`, {
@@ -75,10 +90,17 @@ const App: React.FC = () => {
             if (videoTrack) await produce(videoTrack, 'video');
             if (audioTrack) await produce(audioTrack, 'audio');
 
+            startTranscription(socket, 'local');
+
             setInMeeting(true);
         } catch (err) {
             alert('Failed to join meeting. Please check camera/mic permissions.');
         }
+    };
+
+    const handleLeave = () => {
+        stopTranscription();
+        window.location.reload();
     };
 
     const handleToggleMic = () => {
@@ -89,6 +111,40 @@ const App: React.FC = () => {
     const handleToggleCamera = () => {
         toggleVideo();
         setIsVideoOff(!isVideoOff);
+    };
+
+    const handleToggleHandRaise = () => {
+        const newState = !isHandRaised;
+        setIsHandRaised(newState);
+        updateParticipant('local', { isHandRaised: newState });
+        socket?.emit('toggle-hand-raise', { isHandRaised: newState });
+    };
+
+    const handleToggleScreenShare = async () => {
+        try {
+            if (!isScreenSharing) {
+                const screenStream = await startScreenShare();
+                const videoTrack = screenStream.getVideoTracks()[0];
+
+                if (videoTrack) {
+                    await produce(videoTrack, 'video', { sourceType: 'screen' });
+                    updateParticipant('local', { screenStream });
+                    setIsScreenSharing(true);
+
+                    // Handle native stop sharing button on browser
+                    videoTrack.onended = () => {
+                        updateParticipant('local', { screenStream: undefined });
+                        setIsScreenSharing(false);
+                    };
+                }
+            } else {
+                // To actually kill the stream, user just clicks stop on the browser UI
+                // But we optionally handle clicking the button again
+                alert('Click stop sharing on your browser popup.');
+            }
+        } catch (err) {
+            console.error('Failed to share screen', err);
+        }
     };
 
     if (!inMeeting) {
@@ -110,11 +166,15 @@ const App: React.FC = () => {
             <ControlsBar
                 isMuted={isMuted}
                 isVideoOff={isVideoOff}
+                isHandRaised={isHandRaised}
+                isScreenSharing={isScreenSharing}
                 onToggleMic={handleToggleMic}
                 onToggleCamera={handleToggleCamera}
+                onToggleHandRaise={handleToggleHandRaise}
+                onToggleScreenShare={handleToggleScreenShare}
                 onToggleChat={() => setSidebar(sidebar === 'chat' ? null : 'chat')}
                 onToggleParticipants={() => setSidebar(sidebar === 'participants' ? null : 'participants')}
-                onLeave={() => window.location.reload()}
+                onLeave={handleLeave}
             />
         </div>
     );
