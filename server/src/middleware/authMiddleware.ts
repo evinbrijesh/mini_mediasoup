@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../auth';
+import { verifyToken } from '../auth.js';
 
 export interface AuthRequest extends Request {
     userId?: string;
@@ -11,7 +11,8 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const token = authHeader.split(' ')[1];
+    const parts = authHeader.split(' ');
+    const token = parts[1];
     if (!token) {
         return res.status(401).json({ error: 'Unauthorized' });
     }

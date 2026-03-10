@@ -17,13 +17,23 @@ interface ChatSidebarProps {
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({ socket, onClose }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
+    // BUG-046: Track own socket ID so we can identify own messages reliably
+    const [mySocketId, setMySocketId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!socket) return;
+        // Capture socket ID when available
+        setMySocketId(socket.id ?? null);
+        const handleId = () => setMySocketId(socket.id);
+        socket.on('connect', handleId);
+
         socket.on('new-message', (msg: Message) => {
             setMessages(prev => [...prev, msg]);
         });
-        return () => socket.off('new-message');
+        return () => {
+            socket.off('new-message');
+            socket.off('connect', handleId);
+        };
     }, [socket]);
 
     const handleSend = (e: React.FormEvent) => {
@@ -62,7 +72,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ socket, onClose }) => 
                                 <span className="font-medium text-[13px] text-meet-gray">{msg.senderName}</span>
                                 <span className="text-[11px] text-meet-gray-muted">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                            <div className={`chat-bubble ${msg.senderName === 'You' ? 'own' : 'other'}`}>
+                            <div className={`chat-bubble ${msg.senderId === mySocketId ? 'own' : 'other'}`}>
                                 {msg.text}
                             </div>
                         </div>

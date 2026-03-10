@@ -19,19 +19,42 @@ const workerSettings: WorkerSettings = {
 let workers: Worker[] = [];
 let nextWorkerIdx = 0;
 
+// BUG-022: Cap worker count to avoid spawning too many processes on large machines
+const MAX_WORKERS = 4;
+
+const createWorker = async (): Promise<Worker> => {
+  const worker = await mediasoup.createWorker(workerSettings);
+
+  // BUG-021: Replace the dead worker instead of exiting the entire process
+  worker.on('died', async () => {
+    console.error(
+      `mediasoup worker [pid:${worker.pid}] died — replacing it in 2 seconds...`
+    );
+    setTimeout(async () => {
+      try {
+        const idx = workers.indexOf(worker);
+        if (idx !== -1) {
+          const replacement = await createWorker();
+          workers[idx] = replacement;
+          console.log(`mediasoup worker replaced at index ${idx} [pid:${replacement.pid}]`);
+        }
+      } catch (err) {
+        console.error('Failed to replace mediasoup worker — exiting:', err);
+        process.exit(1);
+      }
+    }, 2000);
+  });
+
+  return worker;
+};
+
 export const createWorkers = async () => {
-  const numWorkers = os.cpus().length;
-  console.log(`Spawning ${numWorkers} mediasoup workers...`);
+  const numCpus = os.cpus().length;
+  const numWorkers = Math.min(numCpus, MAX_WORKERS);
+  console.log(`Spawning ${numWorkers} mediasoup workers (CPUs: ${numCpus}, cap: ${MAX_WORKERS})...`);
 
   for (let i = 0; i < numWorkers; i++) {
-    const worker = await mediasoup.createWorker(workerSettings);
-
-    worker.on('died', () => {
-      console.error('mediasoup worker died, exiting in 2 seconds... [pid:%d]', worker.pid);
-      setTimeout(() => process.exit(1), 2000);
-    });
-
-    workers.push(worker);
+    workers.push(await createWorker());
   }
 };
 

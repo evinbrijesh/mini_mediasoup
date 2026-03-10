@@ -35,10 +35,18 @@ export const useMeetingStore = create<MeetingState>((set) => ({
             const updatedParticipants = [...state.remoteParticipants];
             const existing = updatedParticipants[existingIndex];
 
+            // BUG-043: Merge ALL stream fields and metadata, not just video/audio
             updatedParticipants[existingIndex] = {
                 ...existing,
-                videoStream: p.videoStream || existing.videoStream,
-                audioStream: p.audioStream || existing.audioStream,
+                // Update display name if a newer one is provided
+                displayName: p.displayName || existing.displayName,
+                // Merge streams: prefer the incoming value if present, fall back to existing
+                videoStream: p.videoStream ?? existing.videoStream,
+                audioStream: p.audioStream ?? existing.audioStream,
+                screenStream: p.screenStream !== undefined ? p.screenStream : existing.screenStream,
+                isMuted: p.isMuted !== undefined ? p.isMuted : existing.isMuted,
+                isVideoOff: p.isVideoOff !== undefined ? p.isVideoOff : existing.isVideoOff,
+                isHandRaised: p.isHandRaised !== undefined ? p.isHandRaised : existing.isHandRaised,
             };
 
             return { remoteParticipants: updatedParticipants };

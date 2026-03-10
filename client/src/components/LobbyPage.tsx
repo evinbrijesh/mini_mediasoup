@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Video, Keyboard, Settings, HelpCircle, MessageSquare, Mic, MicOff, VideoOff, MoreVertical } from 'lucide-react';
 
 interface LobbyPageProps {
     onJoin: (roomId: string, displayName: string) => void;
-    onLogin: (email: string, pass: string) => void;
-    onSignup: (email: string, name: string, pass: string) => void;
+    onLogin: (email: string, pass: string) => Promise<boolean>;
+    onSignup: (email: string, name: string, pass: string) => Promise<boolean>;
     user: any;
+    roomId?: string;
 }
 
-export const LobbyPage: React.FC<LobbyPageProps> = ({ onJoin, onLogin, onSignup, user }) => {
-    const [roomId, setRoomId] = useState('');
+export const LobbyPage: React.FC<LobbyPageProps> = ({ onJoin, onLogin, onSignup, user, roomId: initialRoomId }) => {
+    const [roomId, setRoomId] = useState(initialRoomId || '');
     const [displayName, setDisplayName] = useState(user?.name || '');
     const [mode, setMode] = useState<'join' | 'login' | 'signup'>('join');
 
@@ -20,10 +21,19 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({ onJoin, onLogin, onSignup,
     const [isMicMuted, setIsMicMuted] = useState(false);
     const [isCamOff, setIsCamOff] = useState(false);
 
+    // BUG-045: Live clock in lobby header
+    const [now, setNow] = useState(new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
     const handleJoin = (e: React.FormEvent) => {
         e.preventDefault();
-        if (roomId && (displayName || user)) {
-            onJoin(roomId, displayName || user.name);
+        const name = displayName.trim() || user?.name?.trim();
+        // BUG-050: Validate that displayName is non-empty before joining
+        if (roomId && name) {
+            onJoin(roomId, name);
         }
     };
 
@@ -66,8 +76,15 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({ onJoin, onLogin, onSignup,
                 </div>
 
                 {mode === 'login'
-                    ? <AuthForm title="Welcome Back" buttonText="Sign In" isLogin={true} onSubmit={() => { onLogin(email, password); setMode('join'); }} />
-                    : <AuthForm title="Create Account" buttonText="Get Started" isLogin={false} onSubmit={() => { onSignup(email, name, password); setMode('join'); }} />
+                    // BUG-051: Await async login before switching mode — only switch on success
+                    ? <AuthForm title="Welcome Back" buttonText="Sign In" isLogin={true} onSubmit={async () => {
+                        const ok = await onLogin(email, password);
+                        if (ok) setMode('join');
+                    }} />
+                    : <AuthForm title="Create Account" buttonText="Get Started" isLogin={false} onSubmit={async () => {
+                        const ok = await onSignup(email, name, password);
+                        if (ok) setMode('join');
+                    }} />
                 }
             </div>
         );
@@ -82,10 +99,11 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({ onJoin, onLogin, onSignup,
                     <span>StreamConnect</span>
                 </div>
                 <div className="header-right">
+                    {/* BUG-045: Live clock */}
                     <div className="header-time">
-                        <span>{new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                        <span>{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                         <span>•</span>
-                        <span>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                        <span>{now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                     </div>
 
                     <div className="header-actions">
@@ -96,7 +114,8 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({ onJoin, onLogin, onSignup,
 
                     {user ? (
                         <div className="user-avatar">
-                            {user.name[0].toUpperCase()}
+                            {/* BUG-049: Safe avatar initial */}
+                            {user.name?.trim() ? user.name.trim()[0].toUpperCase() : '?'}
                         </div>
                     ) : (
                         <button onClick={() => setMode('login')} className="btn-signin">
@@ -172,7 +191,8 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({ onJoin, onLogin, onSignup,
                             <button
                                 type="submit"
                                 className={`btn-join-inside ${roomId ? 'active' : 'disabled'}`}
-                                disabled={!roomId || (!user && !displayName)}
+                                // BUG-050: Also require a non-empty display name
+                                disabled={!roomId || (!user && !displayName.trim())}
                             >
                                 Join
                             </button>
@@ -202,4 +222,3 @@ export const LobbyPage: React.FC<LobbyPageProps> = ({ onJoin, onLogin, onSignup,
         </div>
     );
 };
-

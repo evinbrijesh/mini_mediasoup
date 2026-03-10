@@ -18,16 +18,32 @@ export const VideoTile: React.FC<VideoTileProps> = ({
     const audioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
-        if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream ?? null;
         }
+        // BUG-048: Cleanup srcObject on unmount / stream change to release MediaStream references
+        return () => {
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
+        };
     }, [stream]);
 
     useEffect(() => {
-        if (audioRef.current && audioStream) {
-            audioRef.current.srcObject = audioStream;
+        if (audioRef.current) {
+            audioRef.current.srcObject = audioStream ?? null;
         }
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.srcObject = null;
+            }
+        };
     }, [audioStream]);
+
+    // BUG-049: Safe avatar initial — handle empty/undefined displayName
+    const avatarInitial = displayName?.trim()
+        ? displayName.trim()[0].toUpperCase()
+        : '?';
 
     return (
         <div className="video-tile">
@@ -41,7 +57,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
                 />
             ) : (
                 <div className="participant-avatar">
-                    {displayName[0].toUpperCase()}
+                    {avatarInitial}
                 </div>
             )}
 

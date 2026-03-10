@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Mic, MicOff, Video, VideoOff, ScreenShare,
     MessageSquare, Users, Phone, MoreVertical, Hand, Info, Activity, Shield
 } from 'lucide-react';
 
 interface ControlsBarProps {
+    roomId: string;
     isMuted: boolean;
     isVideoOff: boolean;
     isHandRaised?: boolean;
@@ -19,17 +20,26 @@ interface ControlsBarProps {
 }
 
 export const ControlsBar: React.FC<ControlsBarProps> = ({
-    isMuted, isVideoOff, isHandRaised, isScreenSharing,
+    roomId, isMuted, isVideoOff, isHandRaised, isScreenSharing,
     onToggleMic, onToggleCamera, onToggleHandRaise, onToggleScreenShare,
     onToggleChat, onToggleParticipants, onLeave
 }) => {
+    // BUG-045: Live clock — update every second instead of freezing at mount time
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
     return (
         <div className="controls-bar">
-            {/* Left section - Time & Info */}
+            {/* Left section - Time & Room Code */}
             <div className="controls-left">
-                <span>{new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                <span>{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                 <span className="controls-divider">|</span>
-                <span>x5k-ky9-byz</span>
+                {/* BUG-044: Show actual roomId instead of hardcoded placeholder */}
+                <span>{roomId}</span>
             </div>
 
             {/* Center section - Main Controls */}

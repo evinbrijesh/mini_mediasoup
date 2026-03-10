@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import prisma from '../prisma';
+import prisma from '../prisma.js';
 import { hashPassword, comparePassword, generateToken } from '../auth.js';
 
 const router = Router();

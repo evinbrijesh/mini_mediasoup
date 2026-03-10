@@ -42,13 +42,17 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ onClose }) =
                     <div key={p.id} className="participant-item px-2 py-1 hover:bg-meet-surface rounded transition-colors group">
                         <div className="participant-info">
                             <div className="participant-mini-avatar">
-                                {p.displayName[0].toUpperCase()}
+                                {/* BUG-049: Safe avatar initial */}
+                                {p.displayName?.trim() ? p.displayName.trim()[0].toUpperCase() : '?'}
                             </div>
                             <div className="flex flex-col">
                                 <span className="participant-name text-sm font-medium truncate max-w-[150px]">
                                     {p.displayName} {p.isLocal && <span className="text-meet-gray-muted font-normal ml-1">(You)</span>}
                                 </span>
-                                <span className="text-xs text-meet-gray-muted">Meeting host</span>
+                                {/* BUG-052: Only label the local user as host — others are attendees */}
+                                <span className="text-xs text-meet-gray-muted">
+                                    {p.isLocal ? 'Meeting host' : 'Attendee'}
+                                </span>
                             </div>
                         </div>
                         <div className="participant-indicators">

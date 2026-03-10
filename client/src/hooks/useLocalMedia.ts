@@ -5,6 +5,8 @@ export const useLocalMedia = () => {
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
     const recognitionRef = useRef<any>(null);
+    // BUG-036: Track whether transcription was intentionally stopped to prevent restart
+    const stoppedRef = useRef<boolean>(false);
     const updateParticipant = useMeetingStore((state) => state.updateParticipant);
 
     const startLocalStream = useCallback(async () => {
@@ -39,8 +41,13 @@ export const useLocalMedia = () => {
     }, []);
 
     const startTranscription = useCallback((socket: any, localId: string) => {
+        // BUG-039: Guard against null socket
+        if (!socket) return;
+
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) return;
+
+        stoppedRef.current = false;
 
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -52,6 +59,7 @@ export const useLocalMedia = () => {
                 const text = event.results[i][0].transcript;
                 const isFinal = event.results[i].isFinal;
 
+                // BUG-035/BUG-075: Use 'transcript-from-client' which the server now handles
                 socket.emit('transcript-from-client', {
                     peerId: localId,
                     text: text,
@@ -61,9 +69,18 @@ export const useLocalMedia = () => {
             }
         };
 
+        // BUG-036: Only restart if we haven't intentionally stopped
         recognition.onend = () => {
-            // Restart if it stops abruptly
-            recognition.start();
+            if (!stoppedRef.current && recognitionRef.current) {
+                recognition.start();
+            }
+        };
+
+        recognition.onerror = (event: any) => {
+            // Don't log 'no-speech' — it's normal and causes unnecessary noise
+            if (event.error !== 'no-speech') {
+                console.error('SpeechRecognition error:', event.error);
+            }
         };
 
         recognition.start();
@@ -72,7 +89,9 @@ export const useLocalMedia = () => {
 
     const stopTranscription = useCallback(() => {
         if (recognitionRef.current) {
-            recognitionRef.current.onend = null; // Prevent restart
+            // BUG-036: Set stopped flag BEFORE clearing onend to prevent race condition
+            stoppedRef.current = true;
+            recognitionRef.current.onend = null;
             recognitionRef.current.stop();
             recognitionRef.current = null;
         }
@@ -80,18 +99,30 @@ export const useLocalMedia = () => {
 
     const toggleVideo = useCallback(() => {
         if (stream) {
+            // BUG-037: Guard against missing video track (e.g. camera permission denied)
             const videoTrack = stream.getVideoTracks()[0];
+            if (!videoTrack) return;
             videoTrack.enabled = !videoTrack.enabled;
-            // Update store state if needed
         }
     }, [stream]);
 
     const toggleAudio = useCallback(() => {
         if (stream) {
+            // BUG-038: Guard against missing audio track
             const audioTrack = stream.getAudioTracks()[0];
+            if (!audioTrack) return;
             audioTrack.enabled = !audioTrack.enabled;
         }
     }, [stream]);
+
+    const stopAllTracks = useCallback(() => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+        }
+    }, [stream, screenStream]);
 
     return {
         stream,
@@ -101,6 +132,7 @@ export const useLocalMedia = () => {
         startTranscription,
         stopTranscription,
         toggleVideo,
-        toggleAudio
+        toggleAudio,
+        stopAllTracks,
     };
 };

@@ -1,5 +1,5 @@
 import type { Router, RtpCapabilities, Worker, MediaKind, RtpParameters, DtlsParameters } from 'mediasoup/node/lib/types';
-import { Peer } from './Peer';
+import { Peer } from './Peer.js';
 
 export class Room {
     public id: string;

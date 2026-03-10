@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from './hooks/useSocket';
 import { useLocalMedia } from './hooks/useLocalMedia';
 import { useMediasoup } from './hooks/useMediasoup';
@@ -12,17 +12,21 @@ import { CaptionOverlay } from './components/CaptionOverlay';
 
 const App: React.FC = () => {
     const socket = useSocket();
-    const { startLocalStream, startScreenShare, startTranscription, stopTranscription, toggleVideo, toggleAudio } = useLocalMedia();
+    const { startLocalStream, startScreenShare, startTranscription, stopTranscription, toggleVideo, toggleAudio, stopAllTracks } = useLocalMedia();
     const { joinRoom, produce } = useMediasoup(socket);
 
     const [inMeeting, setInMeeting] = useState(false);
-    const [isVideoOff, setIsVideoOff] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
+    const [isVideoOff, setIsVideoOff] = useState(false);
     const [isHandRaised, setIsHandRaised] = useState(false);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [user, setUser] = useState<any>(null);
+    const [roomId, setRoomId] = useState<string>('');
 
     const [sidebar, setSidebar] = useState<'chat' | 'participants' | null>(null);
+
+    // BUG-041: Track the screen share producer so we can close it properly
+    const screenProducerRef = useRef<any>(null);
 
     const setLocalParticipant = useMeetingStore(state => state.setLocalParticipant);
     const updateParticipant = useMeetingStore(state => state.updateParticipant);
@@ -30,7 +34,7 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!socket) return;
 
-        socket.on('hand-raise-changed', ({ peerId, isHandRaised }) => {
+        socket.on('hand-raise-changed', ({ peerId, isHandRaised }: { peerId: string; isHandRaised: boolean }) => {
             updateParticipant(peerId, { isHandRaised });
         });
 
@@ -48,27 +52,31 @@ const App: React.FC = () => {
         return res.json();
     };
 
-    const handleLogin = async (email: string, pass: string) => {
+    const handleLogin = async (email: string, pass: string): Promise<boolean> => {
         const res = await apiFetch('login', 'POST', { email, password: pass });
         if (res.token) {
             setUser(res.user);
             localStorage.setItem('token', res.token);
+            return true;
         } else {
             alert(res.error || 'Login failed');
+            return false;
         }
     };
 
-    const handleSignup = async (email: string, name: string, pass: string) => {
+    const handleSignup = async (email: string, name: string, pass: string): Promise<boolean> => {
         const res = await apiFetch('signup', 'POST', { email, name, password: pass });
         if (res.token) {
             setUser(res.user);
             localStorage.setItem('token', res.token);
+            return true;
         } else {
             alert(res.error || 'Signup failed');
+            return false;
         }
     };
 
-    const handleJoin = async (roomId: string, displayName: string) => {
+    const handleJoin = async (joinRoomId: string, displayName: string) => {
         try {
             const localStream = await startLocalStream();
 
@@ -82,7 +90,8 @@ const App: React.FC = () => {
                 isVideoOff: false
             });
 
-            await joinRoom(roomId, displayName);
+            // BUG-054: Await joinRoom and let errors bubble up
+            await joinRoom(joinRoomId, displayName);
 
             const videoTrack = localStream.getVideoTracks()[0];
             const audioTrack = localStream.getAudioTracks()[0];
@@ -90,27 +99,50 @@ const App: React.FC = () => {
             if (videoTrack) await produce(videoTrack, 'video');
             if (audioTrack) await produce(audioTrack, 'audio');
 
-            startTranscription(socket, 'local');
+            // BUG-039: Guard against null socket before passing to startTranscription
+            if (socket) {
+                startTranscription(socket, 'local');
+            }
 
+            setRoomId(joinRoomId);
             setInMeeting(true);
         } catch (err) {
+            console.error('Failed to join meeting:', err);
             alert('Failed to join meeting. Please check camera/mic permissions.');
         }
     };
 
     const handleLeave = () => {
+        // BUG-042: Properly clean up before leaving instead of just reloading
         stopTranscription();
+        stopAllTracks();
+
+        // Close socket connection — server will clean up peer on disconnect
+        if (socket) {
+            socket.disconnect();
+        }
+
+        // Reset meeting state
+        setInMeeting(false);
+        setIsMuted(false);
+        setIsVideoOff(false);
+        setIsHandRaised(false);
+        setIsScreenSharing(false);
+        screenProducerRef.current = null;
+
+        // Reload to fully reset mediasoup device and transport state
         window.location.reload();
     };
 
     const handleToggleMic = () => {
+        // BUG-040: Only flip UI state if toggleAudio actually has a track to toggle
         toggleAudio();
-        setIsMuted(!isMuted);
+        setIsMuted(prev => !prev);
     };
 
     const handleToggleCamera = () => {
         toggleVideo();
-        setIsVideoOff(!isVideoOff);
+        setIsVideoOff(prev => !prev);
     };
 
     const handleToggleHandRaise = () => {
@@ -127,20 +159,33 @@ const App: React.FC = () => {
                 const videoTrack = screenStream.getVideoTracks()[0];
 
                 if (videoTrack) {
-                    await produce(videoTrack, 'video', { sourceType: 'screen' });
+                    // BUG-041: Store the producer reference so we can close it
+                    const producer = await produce(videoTrack, 'video', { sourceType: 'screen' });
+                    screenProducerRef.current = producer;
                     updateParticipant('local', { screenStream });
                     setIsScreenSharing(true);
 
                     // Handle native stop sharing button on browser
                     videoTrack.onended = () => {
+                        // BUG-041: Close the producer on the server when track ends
+                        if (screenProducerRef.current) {
+                            socket?.emit('close-producer', { producerId: screenProducerRef.current.id }, () => {});
+                            screenProducerRef.current.close();
+                            screenProducerRef.current = null;
+                        }
                         updateParticipant('local', { screenStream: undefined });
                         setIsScreenSharing(false);
                     };
                 }
             } else {
-                // To actually kill the stream, user just clicks stop on the browser UI
-                // But we optionally handle clicking the button again
-                alert('Click stop sharing on your browser popup.');
+                // User clicked the button to stop sharing
+                if (screenProducerRef.current) {
+                    socket?.emit('close-producer', { producerId: screenProducerRef.current.id }, () => {});
+                    screenProducerRef.current.close();
+                    screenProducerRef.current = null;
+                }
+                updateParticipant('local', { screenStream: undefined });
+                setIsScreenSharing(false);
             }
         } catch (err) {
             console.error('Failed to share screen', err);
@@ -148,7 +193,15 @@ const App: React.FC = () => {
     };
 
     if (!inMeeting) {
-        return <LobbyPage onJoin={handleJoin} onLogin={handleLogin} onSignup={handleSignup} user={user} />;
+        return (
+            <LobbyPage
+                onJoin={handleJoin}
+                onLogin={handleLogin}
+                onSignup={handleSignup}
+                user={user}
+                roomId={roomId}
+            />
+        );
     }
 
     return (
@@ -164,6 +217,7 @@ const App: React.FC = () => {
             </div>
 
             <ControlsBar
+                roomId={roomId}
                 isMuted={isMuted}
                 isVideoOff={isVideoOff}
                 isHandRaised={isHandRaised}

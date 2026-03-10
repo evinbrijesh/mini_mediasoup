@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-socketio[asyncio_client]
+faster-whisper
+webrtcvad
+opuslib
+numpy
+requests
