@@ -41,7 +41,10 @@ export const handleSocketEvents = (socket: Socket, io: Server) => {
             }
 
             const transport = await room.router.createWebRtcTransport({
-                listenIps: [{ ip: '0.0.0.0', announcedIp: '127.0.0.1' }], // Adjust for production
+                listenIps: [{ 
+                    ip: '0.0.0.0', 
+                    announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP || '127.0.0.1' 
+                }],
                 enableUdp: true,
                 enableTcp: true,
                 preferUdp: true,
@@ -178,6 +181,7 @@ export const handleSocketEvents = (socket: Socket, io: Server) => {
                             producerId: producer.id,
                             kind: producer.kind,
                             appData: producer.appData,
+                            displayName: p.displayName,
                         });
                     });
                 }
@@ -189,10 +193,14 @@ export const handleSocketEvents = (socket: Socket, io: Server) => {
         }
     });
 
-    socket.on('transcript-from-ai', (data: any) => {
-        // Broadcast transcript to the room
-        // Note: AI service needs to provide the roomId
-        io.to(room.id).emit('transcript', data);
+    socket.on('transcript-from-client', ({ peerId, text, isFinal, sourceLanguage }: any) => {
+        if (!room) return;
+        io.to(room.id).emit('transcript', { peerId, text, isFinal, sourceLanguage });
+    });
+
+    socket.on('toggle-hand-raise', ({ isHandRaised }: { isHandRaised: boolean }) => {
+        if (!room || !peer) return;
+        io.to(room.id).emit('hand-raise-changed', { peerId: peer.id, isHandRaised });
     });
 
     socket.on('send-message', ({ text }: { text: string }) => {

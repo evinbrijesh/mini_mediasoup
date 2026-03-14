@@ -13,7 +13,7 @@ const workerSettings: WorkerSettings = {
     'rtcp',
   ] as WorkerLogTag[],
   rtcMinPort: Number(process.env.MEDIASOUP_MIN_PORT) || 10000,
-  rtcMaxPort: Number(process.env.MEDIASOUP_MAX_PORT) || 20000,
+  rtcMaxPort: Number(process.env.MEDIASOUP_MAX_PORT) || 11000,
 };
 
 let workers: Worker[] = [];
