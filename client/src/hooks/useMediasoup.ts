@@ -33,12 +33,12 @@ export const useMediasoup = (socket: Socket | null) => {
 
         // 5. Get existing producers
         socket.emit('get-producers', (producers: any[]) => {
-            producers.forEach(p => consumeProducer(socket, p.producerId, p.peerId, p.kind));
+            producers.forEach(p => consumeProducer(socket, p.producerId, p.peerId, p.kind, p.appData));
         });
 
         // 6. Listen for new producers
         socket.on('new-producer', (data: any) => {
-            consumeProducer(socket, data.producerId, data.peerId, data.kind);
+            consumeProducer(socket, data.producerId, data.peerId, data.kind, data.appData);
         });
     }, [socket]);
 
@@ -85,12 +85,12 @@ export const useMediasoup = (socket: Socket | null) => {
         });
     };
 
-    const produce = async (track: MediaStreamTrack, kind: 'audio' | 'video') => {
+    const produce = async (track: MediaStreamTrack, kind: 'audio' | 'video', appData?: any) => {
         if (!sendTransportRef.current) return;
-        return await sendTransportRef.current.produce({ track, appData: { kind } });
+        return await sendTransportRef.current.produce({ track, appData: appData || { kind } });
     };
 
-    const consumeProducer = async (socket: Socket, producerId: string, peerId: string, kind: string) => {
+    const consumeProducer = async (socket: Socket, producerId: string, peerId: string, kind: string, appData?: any) => {
         if (!deviceRef.current || !recvTransportRef.current) return;
 
         const data: any = await new Promise(resolve =>
@@ -114,14 +114,16 @@ export const useMediasoup = (socket: Socket | null) => {
                 return;
             }
             const stream = new MediaStream([consumer.track]);
+            const isScreen = appData?.sourceType === 'screen';
 
             // Update UI store with remote stream
             addRemoteParticipant({
                 id: peerId,
                 displayName: 'Remote User', // Should be fetched from registry
                 isLocal: false,
-                videoStream: kind === 'video' ? stream : undefined,
+                videoStream: kind === 'video' && !isScreen ? stream : undefined,
                 audioStream: kind === 'audio' ? stream : undefined,
+                screenStream: isScreen ? stream : undefined,
                 isMuted: false,
                 isVideoOff: false
             });

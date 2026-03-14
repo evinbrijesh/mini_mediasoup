@@ -12,24 +12,35 @@ export const VideoGrid: React.FC = () => {
     ];
 
     const getGridCols = (count: number) => {
-        if (count === 1) return 'grid-cols-1 max-w-5xl mx-auto';
-        if (count <= 2) return 'grid-cols-1 md:grid-cols-2 max-w-6xl mx-auto';
-        if (count <= 4) return 'grid-cols-2 max-w-6xl mx-auto';
-        if (count <= 6) return 'grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto';
-        return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+        if (count === 1) return 'grid-cols-1';
+        if (count <= 2) return 'grid-cols-2';
+        if (count <= 4) return 'grid-cols-2';
+        if (count <= 6) return 'grid-cols-3';
+        return 'grid-cols-4';
     };
 
     return (
-        <div className={`grid ${getGridCols(allParticipants.length)} gap-4 w-full h-[calc(100vh-88px)] p-4 items-center place-content-center bg-meet-bg`}>
-            {allParticipants.map(p => (
-                <VideoTile
-                    key={p.id}
-                    stream={p.videoStream}
-                    audioStream={p.audioStream}
-                    displayName={p.displayName}
-                    isLocal={p.isLocal}
-                    isMuted={p.isMuted}
-                />
+        <div className={`video-grid ${getGridCols(allParticipants.length)}`}>
+            {allParticipants.map((p: any) => (
+                <React.Fragment key={p.id}>
+                    <VideoTile
+                        stream={p.videoStream}
+                        audioStream={p.audioStream}
+                        displayName={p.displayName}
+                        isLocal={p.isLocal}
+                        isMuted={p.isMuted}
+                        isHandRaised={p.isHandRaised}
+                    />
+                    {p.screenStream && (
+                        <VideoTile
+                            stream={p.screenStream}
+                            displayName={`${p.displayName}'s Screen`}
+                            isLocal={p.isLocal}
+                            isMuted={true}
+                            isScreenShare={true}
+                        />
+                    )}
+                </React.Fragment>
             ))}
         </div>
     );
