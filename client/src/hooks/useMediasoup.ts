@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import * as mediasoupClient from 'mediasoup-client';
 import { Device, types } from 'mediasoup-client';
 type Transport = types.Transport;
@@ -11,17 +11,24 @@ export const useMediasoup = (socket: Socket | null) => {
     const recvTransportRef = useRef<Transport | null>(null);
 
     const addRemoteParticipant = useMeetingStore(state => state.addRemoteParticipant);
-    const updateParticipant = useMeetingStore(state => state.updateParticipant);
+    const removeRemoteParticipant = useMeetingStore(state => state.removeRemoteParticipant);
+    
+    // Store for display names mapping peerId -> displayName
+    const displayNamesRef = useRef<Map<string, string>>(new Map());
 
     const joinRoom = useCallback(async (roomId: string, displayName: string) => {
         if (!socket) return;
 
-        // 1. Get router RTP capabilities
-        const data: any = await new Promise(resolve =>
-            socket.emit('join-room', { roomId, displayName }, resolve)
+        // 1. Join room and get router RTP capabilities from server
+        const data: any = await new Promise((resolve, reject) =>
+            socket.emit('join-room', { roomId, displayName }, (res: any) => {
+                if (res?.error) reject(new Error(res.error));
+                else resolve(res);
+            })
         );
+        if (!data || !data.rtpCapabilities) throw new Error("Missing RTP Capabilities");
 
-        // 2. Create device
+        // 2. Create and load device with router capabilities
         const device = new mediasoupClient.Device();
         await device.load({ routerRtpCapabilities: data.rtpCapabilities });
         deviceRef.current = device;
@@ -33,20 +40,46 @@ export const useMediasoup = (socket: Socket | null) => {
 
         // 5. Get existing producers
         socket.emit('get-producers', (producers: any[]) => {
-            producers.forEach(p => consumeProducer(socket, p.producerId, p.peerId, p.kind, p.appData));
+            console.log('get-producers response', producers);
+            producers.forEach(p => {
+                displayNamesRef.current.set(p.peerId, p.displayName);
+                consumeProducer(socket, p.producerId, p.peerId, p.kind, p.appData);
+            });
         });
 
         // 6. Listen for new producers
         socket.on('new-producer', (data: any) => {
+            console.log('new-producer event', data);
             consumeProducer(socket, data.producerId, data.peerId, data.kind, data.appData);
         });
-    }, [socket]);
+
+        // 7. Listen for peer join/leave
+        socket.on('peer-joined', ({ peerId, displayName }: { peerId: string, displayName: string }) => {
+            console.log('peer-joined', peerId, displayName);
+            displayNamesRef.current.set(peerId, displayName);
+            addRemoteParticipant({
+                id: peerId,
+                displayName: displayName,
+                isLocal: false,
+                isMuted: false,
+                isVideoOff: false
+            });
+        });
+
+        socket.on('peer-left', ({ peerId }: { peerId: string }) => {
+            console.log('peer-left', peerId);
+            removeRemoteParticipant(peerId);
+        });
+    }, [socket, addRemoteParticipant, removeRemoteParticipant]);
 
     const createSendTransport = async (socket: Socket) => {
         if (!deviceRef.current) return;
 
-        const data: any = await new Promise(resolve =>
-            socket.emit('create-transport', { direction: 'send' }, resolve)
+        const data: any = await new Promise((resolve, reject) =>
+            socket.emit('create-transport', { direction: 'send' }, (res: any) => {
+                if (res?.error) reject(new Error(res.error));
+                else resolve(res);
+            })
         );
 
         const transport = deviceRef.current.createSendTransport(data);
@@ -70,8 +103,11 @@ export const useMediasoup = (socket: Socket | null) => {
     const createRecvTransport = async (socket: Socket) => {
         if (!deviceRef.current) return;
 
-        const data: any = await new Promise(resolve =>
-            socket.emit('create-transport', { direction: 'recv' }, resolve)
+        const data: any = await new Promise((resolve, reject) =>
+            socket.emit('create-transport', { direction: 'recv' }, (res: any) => {
+                if (res?.error) reject(new Error(res.error));
+                else resolve(res);
+            })
         );
 
         const transport = deviceRef.current.createRecvTransport(data);
@@ -91,7 +127,17 @@ export const useMediasoup = (socket: Socket | null) => {
     };
 
     const consumeProducer = async (socket: Socket, producerId: string, peerId: string, kind: string, appData?: any) => {
-        if (!deviceRef.current || !recvTransportRef.current) return;
+        // Wait up to 5 seconds for recvTransportRef to be ready
+        let retryCount = 0;
+        while (!recvTransportRef.current && retryCount < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retryCount++;
+        }
+
+        if (!deviceRef.current || !recvTransportRef.current) {
+            console.error('Recv transport not ready for consuming after waiting');
+            return;
+        }
 
         const data: any = await new Promise(resolve =>
             socket.emit('consume', {
@@ -115,11 +161,12 @@ export const useMediasoup = (socket: Socket | null) => {
             }
             const stream = new MediaStream([consumer.track]);
             const isScreen = appData?.sourceType === 'screen';
+            console.log('Got consumer track', kind, consumer.track.id, 'for peer', peerId);
 
             // Update UI store with remote stream
             addRemoteParticipant({
                 id: peerId,
-                displayName: 'Remote User', // Should be fetched from registry
+                displayName: displayNamesRef.current.get(peerId) || 'Remote User',
                 isLocal: false,
                 videoStream: kind === 'video' && !isScreen ? stream : undefined,
                 audioStream: kind === 'audio' ? stream : undefined,

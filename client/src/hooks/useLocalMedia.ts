@@ -19,8 +19,17 @@ export const useLocalMedia = () => {
             setStream(localStream);
             return localStream;
         } catch (error) {
-            console.error('Error accessing media devices:', error);
-            throw error;
+            console.warn('Camera access failed (possibly due to 3+ tabs hardware limit). Attempting audio only...', error);
+            try {
+                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setStream(audioStream);
+                return audioStream;
+            } catch (fallbackError) {
+                console.warn('Full media access failed. Continuing with an empty stream so user can still join.', fallbackError);
+                const emptyStream = new MediaStream();
+                setStream(emptyStream);
+                return emptyStream;
+            }
         }
     }, []);
 
@@ -39,35 +48,43 @@ export const useLocalMedia = () => {
     }, []);
 
     const startTranscription = useCallback((socket: any, localId: string) => {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) return;
+        try {
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
 
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
 
-        recognition.onresult = (event: any) => {
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const text = event.results[i][0].transcript;
-                const isFinal = event.results[i].isFinal;
+            recognition.onresult = (event: any) => {
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const text = event.results[i][0].transcript;
+                    const isFinal = event.results[i].isFinal;
 
-                socket.emit('transcript-from-client', {
-                    peerId: localId,
-                    text: text,
-                    isFinal: isFinal,
-                    sourceLanguage: 'en'
-                });
-            }
-        };
+                    socket.emit('transcript-from-client', {
+                        peerId: localId,
+                        text: text,
+                        isFinal: isFinal,
+                        sourceLanguage: 'en'
+                    });
+                }
+            };
 
-        recognition.onend = () => {
-            // Restart if it stops abruptly
+            recognition.onend = () => {
+                // Restart if it stops abruptly
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.warn("SpeechRecognition restart failed", e);
+                }
+            };
+
             recognition.start();
-        };
-
-        recognition.start();
-        recognitionRef.current = recognition;
+            recognitionRef.current = recognition;
+        } catch (e) {
+            console.error("Failed to start speech recognition (likely hardware locking by browser):", e);
+        }
     }, []);
 
     const stopTranscription = useCallback(() => {

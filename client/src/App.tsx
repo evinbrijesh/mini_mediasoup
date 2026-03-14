@@ -90,11 +90,12 @@ const App: React.FC = () => {
             if (videoTrack) await produce(videoTrack, 'video');
             if (audioTrack) await produce(audioTrack, 'audio');
 
-            startTranscription(socket, 'local');
+            // startTranscription(socket, 'local'); // Disabled AI feature
 
             setInMeeting(true);
-        } catch (err) {
-            alert('Failed to join meeting. Please check camera/mic permissions.');
+        } catch (err: any) {
+            console.error('Failed to join meeting:', err);
+            alert(`Failed to join meeting: ${err.message || 'Unknown error'}`);
         }
     };
 

@@ -32,22 +32,22 @@ services:
       - REDIS_URL=redis://redis:6379
     ports:
       - "3000:3000"
-      - "10000-10100:10000-10100/udp"
-      - "10000-10100:10000-10100/tcp"
+      - "10000-11000:10000-11000/udp"
+      - "10000-11000:10000-11000/tcp"
     depends_on:
       - postgres
       - redis
 
-  ai-service:
-    build: ./ai-service
-    container_name: meet-ai
-    volumes:
-      - ./ai-service:/app
-    environment:
-      - DEEPL_API_KEY=${DEEPL_API_KEY}
-      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
-    depends_on:
-      - server
+  #  ai-service:
+  #    build: ./ai-service
+  #    container_name: meet-ai
+  #    volumes:
+  #      - ./ai-service:/app
+  #    environment:
+  #      - DEEPL_API_KEY=${DEEPL_API_KEY}
+  #      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+  #    depends_on:
+  #      - server
 
   client:
     build: ./client

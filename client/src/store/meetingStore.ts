@@ -37,8 +37,11 @@ export const useMeetingStore = create<MeetingState>((set) => ({
 
             updatedParticipants[existingIndex] = {
                 ...existing,
+                displayName: p.displayName || existing.displayName,
                 videoStream: p.videoStream || existing.videoStream,
                 audioStream: p.audioStream || existing.audioStream,
+                screenStream: p.screenStream || existing.screenStream,
+                isHandRaised: p.isHandRaised !== undefined ? p.isHandRaised : existing.isHandRaised,
             };
 
             return { remoteParticipants: updatedParticipants };

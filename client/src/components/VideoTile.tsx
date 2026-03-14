@@ -20,12 +20,14 @@ export const VideoTile: React.FC<VideoTileProps> = ({
     useEffect(() => {
         if (videoRef.current && stream) {
             videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(e => console.error('Video play error:', e));
         }
     }, [stream]);
 
     useEffect(() => {
         if (audioRef.current && audioStream) {
             audioRef.current.srcObject = audioStream;
+            audioRef.current.play().catch(e => console.error('Audio play error:', e));
         }
     }, [audioStream]);
 
