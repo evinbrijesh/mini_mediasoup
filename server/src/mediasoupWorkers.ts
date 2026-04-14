@@ -48,3 +48,15 @@ export const getMediasoupWorker = (): Worker => {
 
   return worker;
 };
+
+export const closeWorkers = () => {
+  workers.forEach((worker) => {
+    try {
+      worker.close();
+    } catch {
+      // ignore cleanup errors
+    }
+  });
+  workers = [];
+  nextWorkerIdx = 0;
+};

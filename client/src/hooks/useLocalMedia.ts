@@ -95,6 +95,18 @@ export const useLocalMedia = () => {
         }
     }, []);
 
+    const stopLocalStream = useCallback(() => {
+        if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+            setStream(null);
+        }
+
+        if (screenStream) {
+            screenStream.getTracks().forEach((track) => track.stop());
+            setScreenStream(null);
+        }
+    }, [stream, screenStream]);
+
     const toggleVideo = useCallback(() => {
         if (stream) {
             const videoTrack = stream.getVideoTracks()[0];
@@ -110,6 +122,24 @@ export const useLocalMedia = () => {
         }
     }, [stream]);
 
+    const setAudioEnabled = useCallback((enabled: boolean) => {
+        if (!stream) return;
+        const audioTrack = stream.getAudioTracks()[0];
+        if (!audioTrack) return;
+        audioTrack.enabled = enabled;
+    }, [stream]);
+
+    const setVideoEnabled = useCallback((enabled: boolean) => {
+        if (!stream) return;
+        const videoTrack = stream.getVideoTracks()[0];
+        if (!videoTrack) return;
+        videoTrack.enabled = enabled;
+    }, [stream]);
+
+    const adoptLocalStream = useCallback((nextStream: MediaStream) => {
+        setStream(nextStream);
+    }, []);
+
     return {
         stream,
         screenStream,
@@ -117,7 +147,11 @@ export const useLocalMedia = () => {
         startScreenShare,
         startTranscription,
         stopTranscription,
+        stopLocalStream,
         toggleVideo,
-        toggleAudio
+        toggleAudio,
+        setAudioEnabled,
+        setVideoEnabled,
+        adoptLocalStream,
     };
 };

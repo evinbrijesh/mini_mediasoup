@@ -1,12 +1,43 @@
 import { Router } from 'express';
 import prisma from '../prisma';
 import { hashPassword, comparePassword, generateToken } from '../auth.js';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const isValidEmail = (value: unknown): value is string => {
+    if (typeof value !== 'string') return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+};
+
+const isValidName = (value: unknown): value is string => {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    return trimmed.length >= 2 && trimmed.length <= 50;
+};
+
+const isValidPassword = (value: unknown): value is string => {
+    if (typeof value !== 'string') return false;
+    return value.length >= 8 && value.length <= 128;
+};
+
+router.use(authLimiter);
 
 router.post('/signup', async (req, res) => {
     try {
         const { email, name, password } = req.body;
+
+        if (!isValidEmail(email) || !isValidName(name) || !isValidPassword(password)) {
+            return res.status(400).json({ error: 'Invalid signup payload' });
+        }
+
         const existingUser = await prisma.user.findUnique({ where: { email } });
 
         if (existingUser) {
@@ -32,6 +63,11 @@ router.post('/signup', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+
+        if (!isValidEmail(email) || !isValidPassword(password)) {
+            return res.status(400).json({ error: 'Invalid login payload' });
+        }
+
         const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user || !(await comparePassword(password, user.passwordHash))) {

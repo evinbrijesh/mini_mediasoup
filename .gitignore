@@ -6,3 +6,15 @@ dist/
 build/
 .DS_Store
 *.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local editor/config caches
+.vscode/
+.ruff_cache/
+
+# Local coverage artifacts
+.coverage/
+coverage/

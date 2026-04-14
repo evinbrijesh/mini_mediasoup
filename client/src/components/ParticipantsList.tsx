@@ -1,14 +1,30 @@
 import React from 'react';
-import { X, Mic, MicOff, Users } from 'lucide-react';
+import { X, Mic, MicOff, Users, Video, VideoOff } from 'lucide-react';
 import { useMeetingStore } from '../store/meetingStore';
+import { Socket } from 'socket.io-client';
 
 interface ParticipantsListProps {
     onClose: () => void;
+    socket: Socket | null;
 }
 
-export const ParticipantsList: React.FC<ParticipantsListProps> = ({ onClose }) => {
+export const ParticipantsList: React.FC<ParticipantsListProps> = ({ onClose, socket }) => {
     const localParticipant = useMeetingStore(state => state.localParticipant);
     const remoteParticipants = useMeetingStore(state => state.remoteParticipants);
+    const canModerate = Boolean(localParticipant?.isHost || localParticipant?.isCoHost);
+    const isLocalHost = Boolean(localParticipant?.isHost);
+
+    const handleMuteParticipant = (peerId: string) => {
+        socket?.emit('moderation:mute-peer', { targetPeerId: peerId });
+    };
+
+    const handleRemoveParticipant = (peerId: string) => {
+        socket?.emit('moderation:remove-peer', { targetPeerId: peerId });
+    };
+
+    const handleToggleCoHost = (peerId: string, makeCoHost: boolean) => {
+        socket?.emit('moderation:set-cohost', { targetPeerId: peerId, isCoHost: makeCoHost });
+    };
 
     const participants = [
         ...(localParticipant ? [localParticipant] : []),
@@ -48,10 +64,17 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ onClose }) =
                                 <span className="participant-name text-sm font-medium truncate max-w-[150px]">
                                     {p.displayName} {p.isLocal && <span className="text-meet-gray-muted font-normal ml-1">(You)</span>}
                                 </span>
-                                <span className="text-xs text-meet-gray-muted">Meeting host</span>
+                                <span className="text-xs text-meet-gray-muted">{p.isHost ? 'Meeting host' : p.isCoHost ? 'Co-host' : 'Participant'}</span>
                             </div>
                         </div>
                         <div className="participant-indicators">
+                            <div className="p-2">
+                                {p.isVideoOff ? (
+                                    <VideoOff size={18} className="text-meet-red" />
+                                ) : (
+                                    <Video size={18} className="text-meet-gray-muted" />
+                                )}
+                            </div>
                             {p.isMuted ? (
                                 <div className="p-2">
                                     <MicOff size={18} className="text-meet-red" />
@@ -59,6 +82,25 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ onClose }) =
                             ) : (
                                 <div className="p-2 hover:bg-meet-surfaceHover rounded-full cursor-pointer transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 text-meet-gray-muted hover:text-white">
                                     <Mic size={18} />
+                                </div>
+                            )}
+                            {canModerate && !p.isLocal && (
+                                <div className="participant-actions">
+                                    <button type="button" className="participant-action-btn" onClick={() => handleMuteParticipant(p.id)}>
+                                        Mute
+                                    </button>
+                                    <button type="button" className="participant-action-btn danger" onClick={() => handleRemoveParticipant(p.id)}>
+                                        Remove
+                                    </button>
+                                    {isLocalHost && !p.isHost && (
+                                        <button
+                                            type="button"
+                                            className="participant-action-btn"
+                                            onClick={() => handleToggleCoHost(p.id, !Boolean(p.isCoHost))}
+                                        >
+                                            {p.isCoHost ? 'Revoke co-host' : 'Make co-host'}
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>

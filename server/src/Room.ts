@@ -5,6 +5,12 @@ export class Room {
     public id: string;
     public router!: Router;
     public peers: Map<string, Peer> = new Map();
+    public hostPeerId: string | null = null;
+    public isLocked = false;
+    public waitingRoomEnabled = false;
+    public waitingQueue: Map<string, { peerId: string; displayName: string; requestedAt: number }> = new Map();
+    public admittedPeers: Set<string> = new Set();
+    public sessionId: string | null = null;
 
     constructor(id: string) {
         this.id = id;
@@ -44,6 +50,10 @@ export class Room {
     }
 
     addPeer(peer: Peer) {
+        if (!this.hostPeerId) {
+            this.hostPeerId = peer.id;
+            peer.isHost = true;
+        }
         this.peers.set(peer.id, peer);
     }
 
@@ -56,6 +66,14 @@ export class Room {
         if (peer) {
             peer.close();
             this.peers.delete(peerId);
+
+            if (this.hostPeerId === peerId) {
+                const nextPeer = this.peers.values().next().value as Peer | undefined;
+                this.hostPeerId = nextPeer?.id ?? null;
+                if (nextPeer) {
+                    nextPeer.isHost = true;
+                }
+            }
         }
     }
 
@@ -69,5 +87,18 @@ export class Room {
 
     get rtpCapabilities(): RtpCapabilities {
         return this.router.rtpCapabilities;
+    }
+
+    close() {
+        this.peers.forEach((peer) => {
+            peer.close();
+        });
+        this.peers.clear();
+
+        try {
+            this.router.close();
+        } catch {
+            // ignore cleanup errors
+        }
     }
 }

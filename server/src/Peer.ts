@@ -10,6 +10,7 @@ export interface PeerOptions {
     id: string;
     displayName: string;
     rtpCapabilities?: RtpCapabilities;
+    userId?: string;
 }
 
 export class Peer {
@@ -19,11 +20,17 @@ export class Peer {
     public transports: Map<string, Transport> = new Map();
     public producers: Map<string, Producer> = new Map();
     public consumers: Map<string, Consumer> = new Map();
+    public isMuted = false;
+    public isVideoOff = false;
+    public isHost = false;
+    public isCoHost = false;
+    public userId: string | undefined;
 
-    constructor({ id, displayName, rtpCapabilities }: PeerOptions) {
+    constructor({ id, displayName, rtpCapabilities, userId }: PeerOptions) {
         this.id = id;
         this.displayName = displayName;
         this.rtpCapabilities = rtpCapabilities;
+        this.userId = userId;
     }
 
     addTransport(transport: Transport) {
@@ -51,6 +58,23 @@ export class Peer {
     }
 
     close() {
+        this.consumers.forEach((consumer) => {
+            try {
+                consumer.close();
+            } catch {
+                // ignore cleanup errors
+            }
+        });
+        this.producers.forEach((producer) => {
+            try {
+                producer.close();
+            } catch {
+                // ignore cleanup errors
+            }
+        });
         this.transports.forEach((transport) => transport.close());
+        this.consumers.clear();
+        this.producers.clear();
+        this.transports.clear();
     }
 }

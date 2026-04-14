@@ -12,4 +12,146 @@ model User {
   name         String
   passwordHash String
   createdAt    DateTime @default(now())
+
+  meetings     MeetingParticipant[]
+  messages     Message[]
+  hostedRooms  Room[]                @relation("RoomHost")
+}
+
+model Room {
+  id          String               @id
+  hostId      String?
+  host        User?                @relation("RoomHost", fields: [hostId], references: [id], onDelete: SetNull)
+  createdAt   DateTime             @default(now())
+  endedAt     DateTime?
+
+  participants MeetingParticipant[]
+  messages     Message[]
+}
+
+model MeetingParticipant {
+  id         String   @id @default(uuid())
+  roomId     String
+  userId     String
+  joinedAt   DateTime @default(now())
+  leftAt     DateTime?
+  displayName String
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([userId])
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  roomId     String
+  senderId   String
+  senderName String
+  text       String
+  createdAt  DateTime @default(now())
+
+  room   Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([senderId])
+}
+
+model RoomPolicy {
+  roomId             String   @id @map("room_id")
+  preset             String
+  isLocked           Boolean  @default(false) @map("is_locked")
+  waitingRoomEnabled Boolean  @default(false) @map("waiting_room_enabled")
+  updatedAt          DateTime @default(now()) @map("updated_at")
+
+  @@map("room_policies")
+}
+
+model RoomPolicyAudit {
+  id          String   @id
+  roomId      String   @map("room_id")
+  actorUserId String?  @map("actor_user_id")
+  actorPeerId String?  @map("actor_peer_id")
+  action      String
+  details     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([roomId])
+  @@map("room_policy_audits")
+}
+
+model RoomPolicyTemplate {
+  id                 String   @id
+  userId             String   @map("user_id")
+  name               String
+  preset             String
+  isLocked           Boolean  @default(false) @map("is_locked")
+  waitingRoomEnabled Boolean  @default(false) @map("waiting_room_enabled")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @map("updated_at")
+
+  @@index([userId])
+  @@map("room_policy_templates")
+}
+
+model MeetingSession {
+  id         String    @id
+  roomId     String    @map("room_id")
+  startedAt  DateTime  @default(now()) @map("started_at")
+  endedAt    DateTime? @map("ended_at")
+  endedReason String?  @map("ended_reason")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  participants MeetingSessionParticipant[]
+  events       MeetingSessionEvent[]
+
+  @@index([roomId])
+  @@map("meeting_sessions")
+}
+
+model MeetingSessionParticipant {
+  id          String    @id
+  sessionId   String    @map("session_id")
+  roomId      String    @map("room_id")
+  peerId      String    @map("peer_id")
+  userId      String?   @map("user_id")
+  displayName String    @map("display_name")
+  isGuest     Boolean   @default(false) @map("is_guest")
+  joinedAt    DateTime  @default(now()) @map("joined_at")
+  leftAt      DateTime? @map("left_at")
+
+  session MeetingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([roomId])
+  @@map("meeting_session_participants")
+}
+
+model MeetingSessionEvent {
+  id        String    @id
+  sessionId String?   @map("session_id")
+  roomId    String    @map("room_id")
+  peerId    String?   @map("peer_id")
+  userId    String?   @map("user_id")
+  eventType String    @map("event_type")
+  payload   Json?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  session MeetingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+  @@index([roomId])
+  @@map("meeting_session_events")
+}
+
+model RoomRuntimeRole {
+  roomId    String   @map("room_id")
+  userId    String   @map("user_id")
+  role      String
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@id([roomId, userId])
+  @@map("room_runtime_roles")
 }

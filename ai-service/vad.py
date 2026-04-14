@@ -1,11 +1,13 @@
 import webrtcvad
 import collections
 
+
 class VADProcessor:
-    def __init__(self, aggressiveness=2):
+    def __init__(self, aggressiveness=2, sample_rate=16000):
         self.vad = webrtcvad.Vad(aggressiveness)
         self.frame_duration_ms = 30
         self.padding_duration_ms = 300
+        self.sample_rate = sample_rate
         self.num_padding_frames = self.padding_duration_ms // self.frame_duration_ms
         self.ring_buffer = collections.deque(maxlen=self.num_padding_frames)
         self.triggered = False
@@ -13,10 +15,10 @@ class VADProcessor:
 
     def process(self, frame_pcm):
         """
-        frame_pcm: 16-bit PCM audio data at 16000Hz or 48000Hz
+        frame_pcm: 16-bit PCM audio data at configured sample rate
         Returns: complete utterance bytes if detected, else None
         """
-        is_speech = self.vad.is_speech(frame_pcm, 16000) # Assuming 16k sampled audio
+        is_speech = self.vad.is_speech(frame_pcm, self.sample_rate)
 
         if not self.triggered:
             self.ring_buffer.append((frame_pcm, is_speech))
@@ -32,7 +34,7 @@ class VADProcessor:
             num_unvoiced = len([f for f, speech in self.ring_buffer if not speech])
             if num_unvoiced > 0.9 * self.ring_buffer.maxlen:
                 self.triggered = False
-                utterance = b''.join(self.voiced_frames)
+                utterance = b"".join(self.voiced_frames)
                 self.voiced_frames = []
                 self.ring_buffer.clear()
                 return utterance

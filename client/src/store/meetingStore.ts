@@ -8,25 +8,37 @@ interface Participant {
     audioStream?: MediaStream;
     isMuted: boolean;
     isVideoOff: boolean;
+    isHost?: boolean;
+    isCoHost?: boolean;
+    isSpeaking?: boolean;
     isHandRaised?: boolean;
     screenStream?: MediaStream;
 }
+
+type LayoutMode = 'grid' | 'spotlight' | 'sidebar';
 
 interface MeetingState {
     roomId: string | null;
     localParticipant: Participant | null;
     remoteParticipants: Participant[];
+    pinnedTileId: string | null;
+    layoutMode: LayoutMode;
     setRoomId: (id: string) => void;
     setLocalParticipant: (p: Participant) => void;
     addRemoteParticipant: (p: Participant) => void;
     removeRemoteParticipant: (id: string) => void;
     updateParticipant: (id: string, updates: Partial<Participant>) => void;
+    setPinnedTileId: (tileId: string | null) => void;
+    setLayoutMode: (mode: LayoutMode) => void;
+    resetMeeting: () => void;
 }
 
 export const useMeetingStore = create<MeetingState>((set) => ({
     roomId: null,
     localParticipant: null,
     remoteParticipants: [],
+    pinnedTileId: null,
+    layoutMode: 'grid',
     setRoomId: (roomId) => set({ roomId }),
     setLocalParticipant: (localParticipant) => set({ localParticipant }),
     addRemoteParticipant: (p) => set((state) => {
@@ -60,5 +72,14 @@ export const useMeetingStore = create<MeetingState>((set) => ({
                 p.id === id ? { ...p, ...updates } : p
             )
         };
+    }),
+    setPinnedTileId: (pinnedTileId) => set({ pinnedTileId }),
+    setLayoutMode: (layoutMode) => set({ layoutMode }),
+    resetMeeting: () => set({
+        roomId: null,
+        localParticipant: null,
+        remoteParticipants: [],
+        pinnedTileId: null,
+        layoutMode: 'grid',
     }),
 }));

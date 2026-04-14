@@ -1,7 +1,6 @@
-version: '3.8'
-
 services:
   postgres:
+    profiles: ["local"]
     image: postgres:15-alpine
     container_name: meet-db
     environment:
@@ -12,12 +11,28 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-meet_clone}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
   redis:
+    profiles: ["local"]
     image: redis:7-alpine
     container_name: meet-redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-redis_dev_password_change_me}"]
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_dev_password_change_me}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
 
   server:
     build: ./server
@@ -28,15 +43,24 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-meet_clone}?schema=public
-      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_change_me}
+      - MEDIASOUP_MIN_PORT=${MEDIASOUP_MIN_PORT:-10000}
+      - MEDIASOUP_MAX_PORT=${MEDIASOUP_MAX_PORT:-11000}
+      - MEDIASOUP_ANNOUNCED_IP=${MEDIASOUP_ANNOUNCED_IP:-127.0.0.1}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
     ports:
       - "3000:3000"
       - "10000-11000:10000-11000/udp"
       - "10000-11000:10000-11000/tcp"
-    depends_on:
-      - postgres
-      - redis
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
   #  ai-service:
   #    build: ./ai-service
@@ -60,7 +84,15 @@ services:
     environment:
       - VITE_API_URL=http://localhost:3000
     depends_on:
-      - server
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
 volumes:
   postgres_data:

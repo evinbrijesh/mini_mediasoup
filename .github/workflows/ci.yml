@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        node: [20, 22]
+    defaults:
+      run:
+        working-directory: server
+    env:
+      JWT_SECRET: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run -s tsc --noEmit
+      - name: Collect V8 coverage
+        run: mkdir -p .coverage && NODE_V8_COVERAGE=.coverage npm test
+      - name: Upload server coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-v8-coverage-node-${{ matrix.node }}
+          path: server/.coverage
+          if-no-files-found: error
+
+  client:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        node: [20, 22]
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  ai-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m py_compile main.py rtp_receiver.py vad.py transcriber.py translator.py tts.py
+
+  quality-gate:
+    runs-on: ubuntu-latest
+    needs: [server, client, ai-service]
+    steps:
+      - name: All quality gates passed
+        run: echo "Server tests/typecheck, client build, and ai-service checks passed."

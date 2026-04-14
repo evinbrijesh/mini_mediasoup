@@ -1,10 +1,13 @@
 import React from 'react';
 import {
     Mic, MicOff, Video, VideoOff, ScreenShare,
-    MessageSquare, Users, Phone, MoreVertical, Hand, Info, Activity, Shield
+    MessageSquare, Users, Phone, MoreVertical, Hand, Info, Activity, Shield, LayoutGrid
 } from 'lucide-react';
 
+type LayoutMode = 'grid' | 'spotlight' | 'sidebar';
+
 interface ControlsBarProps {
+    roomId?: string | null;
     isMuted: boolean;
     isVideoOff: boolean;
     isHandRaised?: boolean;
@@ -13,14 +16,28 @@ interface ControlsBarProps {
     onToggleCamera: () => void;
     onToggleHandRaise?: () => void;
     onToggleScreenShare?: () => void;
+    onCycleLayout?: () => void;
+    layoutMode?: LayoutMode;
+    onToggleInfo?: () => void;
+    onToggleActivity?: () => void;
+    onToggleSafety?: () => void;
+    onToggleMore?: () => void;
+    isInfoOpen?: boolean;
+    isActivityOpen?: boolean;
+    isSafetyOpen?: boolean;
+    isMoreOpen?: boolean;
     onToggleChat: () => void;
     onToggleParticipants: () => void;
     onLeave: () => void;
 }
 
 export const ControlsBar: React.FC<ControlsBarProps> = ({
+    roomId,
     isMuted, isVideoOff, isHandRaised, isScreenSharing,
     onToggleMic, onToggleCamera, onToggleHandRaise, onToggleScreenShare,
+    onCycleLayout, layoutMode,
+    onToggleInfo, onToggleActivity, onToggleSafety, onToggleMore,
+    isInfoOpen, isActivityOpen, isSafetyOpen, isMoreOpen,
     onToggleChat, onToggleParticipants, onLeave
 }) => {
     return (
@@ -29,7 +46,7 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({
             <div className="controls-left">
                 <span>{new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                 <span className="controls-divider">|</span>
-                <span>x5k-ky9-byz</span>
+                <span>{roomId || '—'}</span>
             </div>
 
             {/* Center section - Main Controls */}
@@ -64,8 +81,16 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({
                     <ScreenShare size={22} />
                 </button>
 
-                <button className="ctrl-btn bg-gray hide-sm">
+                <button onClick={onToggleMore} className={`ctrl-btn hide-sm ${isMoreOpen ? 'bg-blue' : 'bg-gray'}`}>
                     <MoreVertical size={22} />
+                </button>
+
+                <button
+                    onClick={onCycleLayout}
+                    className="ctrl-btn bg-gray hide-sm"
+                    title={`Layout: ${layoutMode || 'grid'}`}
+                >
+                    <LayoutGrid size={22} />
                 </button>
 
                 <button onClick={onLeave} className="ctrl-btn bg-red ctrl-btn-leave">
@@ -75,7 +100,7 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({
 
             {/* Right section - Sidebars & Options */}
             <div className="controls-right">
-                <button className="icon-btn-ghost-dark hide-md">
+                <button onClick={onToggleInfo} className={`icon-btn-ghost-dark hide-md ${isInfoOpen ? 'active' : ''}`}>
                     <Info size={22} />
                 </button>
                 <button
@@ -90,10 +115,10 @@ export const ControlsBar: React.FC<ControlsBarProps> = ({
                 >
                     <MessageSquare size={22} />
                 </button>
-                <button className="icon-btn-ghost-dark hide-lg">
+                <button onClick={onToggleActivity} className={`icon-btn-ghost-dark hide-lg ${isActivityOpen ? 'active' : ''}`}>
                     <Activity size={22} />
                 </button>
-                <button className="icon-btn-ghost-dark hide-lg">
+                <button onClick={onToggleSafety} className={`icon-btn-ghost-dark hide-lg ${isSafetyOpen ? 'active' : ''}`}>
                     <Shield size={22} />
                 </button>
             </div>

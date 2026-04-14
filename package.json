@@ -1,0 +1,16 @@
+{
+  "name": "mini-mediasoup",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "validate": "make validate",
+    "test:server": "npm --prefix server test",
+    "typecheck:server": "npm --prefix server run -s tsc --noEmit",
+    "build:client": "npm --prefix client run build",
+    "check:ai": "python -m py_compile ai-service/main.py ai-service/rtp_receiver.py ai-service/vad.py ai-service/transcriber.py ai-service/translator.py ai-service/tts.py",
+    "ci:local": "bash scripts/ci-local.sh",
+    "release:patch": "bash scripts/release-version.sh patch",
+    "release:minor": "bash scripts/release-version.sh minor",
+    "release:major": "bash scripts/release-version.sh major"
+  }
+}
